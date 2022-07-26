@@ -2,7 +2,9 @@ open System.Windows.Forms
 open System.Drawing
 open System 
 
-let win = new System.Windows.Forms.Form () //main
+let win = new System.Windows.Forms.Form () 
+let mainPanel = new FlowLayoutPanel()
+
 
 let buttonPanel = new FlowLayoutPanel()
 let numberSysPanel = new FlowLayoutPanel()
@@ -37,26 +39,32 @@ buttonPanel.WrapContents <- true
 numberSysPanel.Location <- new Point (5,45)
 numberSysPanel.BorderStyle <- BorderStyle.Fixed3D
 numberSysPanel.Size <- new Size (225, 60)
-numberSysPanel.FlowDirection <- FlowDirection.LeftToRight
-numberSysPanel.WrapContents <- true
+numberSysPanel.WrapContents <- true 
 
 operatorPanel.Location <- new Point (130,110)
 operatorPanel.BorderStyle <- BorderStyle.Fixed3D
 operatorPanel.Size <- new Size (100,245)
-operatorPanel.FlowDirection <- FlowDirection.LeftToRight
 operatorPanel.WrapContents <- true
 
+let inputLine = new TextBox()
+inputLine.Location <- new Point (5,5)
+inputLine.Size <- new Size(225,0)
+
+
+mainPanel.Controls.Add inputLine
+mainPanel.Controls.Add numberSysPanel
+mainPanel.Controls.Add buttonPanel
+mainPanel.Controls.Add operatorPanel
 
 
 
+mainPanel.Location <- new Point (5,25)
+mainPanel.BorderStyle <- BorderStyle.Fixed3D
+mainPanel.ClientSize <- new Size (235,350)
+mainPanel.WrapContents <- true
 
 
-win.Controls.Add buttonPanel
-win.Controls.Add numberSysPanel
-win.Controls.Add operatorPanel
-
-
-
+win.Controls.Add mainPanel
 win.ClientSize <- new Size (500,500)
 win.Text <- "Converting calculator"
 Application.Run win
