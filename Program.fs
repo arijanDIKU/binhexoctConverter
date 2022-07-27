@@ -2,6 +2,9 @@ open System.Windows.Forms
 open System.Drawing
 open System 
 
+////////////////////////////
+///// FORMS AND PANELS /////
+////////////////////////////
 let win = new System.Windows.Forms.Form () 
 let mainPanel = new FlowLayoutPanel()
 
@@ -9,27 +12,59 @@ let mainPanel = new FlowLayoutPanel()
 let buttonPanel = new FlowLayoutPanel()
 let numberSysPanel = new FlowLayoutPanel()
 let operatorPanel = new FlowLayoutPanel()
+let inputLine = new TextBox()
 
+
+
+
+
+////////////////////////////////////////////
+///// EVENT HANDLING AND FUNCTIONALITY /////   
+////////////////////////////////////////////
+
+
+
+
+///////////////////////////////////////
+///// BUTTONS AND INITIALIZATIONS /////
+///////////////////////////////////////
 
 let numbers = 
-  [(new Button (), "7"); (new Button (), "8"); (new Button (), "9");
-   (new Button (), "4"); (new Button (), "5"); (new Button (), "6");
-   (new Button (), "1"); (new Button (), "2"); (new Button (), "3");
-                         (new Button (), "0");] 
-  |> List.iter (fun (btn, txt) -> btn.Text <- txt; btn.Size <- new Size (30,20); buttonPanel.Controls.Add btn) 
+  [(new Button(), "7"); (new Button(), "8"); (new Button(), "9");
+   (new Button(), "4"); (new Button(), "5"); (new Button(), "6");
+   (new Button(), "1"); (new Button(), "2"); (new Button(), "3");
+                        (new Button(), "0");
+   (new Button(), "+"); (new Button(), "-"); (new Button(), "*"); (new Button(), "/")] 
+numbers |> List.iter (fun (btn, txt) -> btn.Text <- txt; btn.Size <- new Size (30,20); buttonPanel.Controls.Add btn; 
+                                        btn.Click.Add (fun _ -> inputLine.AppendText(txt)) )
 
-let numSystems =
-  [(new RadioButton (), "bin"); (new RadioButton (), "oct"); 
-   (new RadioButton (), "dec"); (new RadioButton(), "hex")] 
-  |> List.iter (fun (btn, txt) -> btn.Text <- txt; numberSysPanel.Controls.Add btn)
+let numSystems = [(new RadioButton(), "bin"); (new RadioButton(), "oct"); 
+                  (new RadioButton(), "dec"); (new RadioButton(), "hex")] 
+let mutable currentSystem = "bin" //default 
+let (b,_) = numSystems |> List.head in b.Checked <- true //default 
+numSystems |> List.iter (fun (btn, txt) -> btn.Text <- txt; numberSysPanel.Controls.Add btn; 
+                                           btn.CheckedChanged.Add (fun _ -> currentSystem <- txt))
+
+
+
+let parseNCompute () = "empty"
 
 let operators = 
-  [(new Button (), "+"); (new Button (), "-"); (new Button (), "*"); (new Button(), "/"); (new Button (), "="); 
+  [(new Button (), "=");
    (new Button (), "To bin"); (new Button (), "To oct"); (new Button (), "To dec"); (new Button (), "To hex")] 
-  |> List.iter (fun (btn, txt) -> btn.Text <- txt; btn.Size <- new Size (90,20); operatorPanel.Controls.Add btn) 
+operators |> List.iter (fun (btn, txt) -> btn.Text <- txt; btn.Size <- new Size (90,20); operatorPanel.Controls.Add btn;
+                                          btn.Click.Add (fun _ -> 
+                                                                  let input = inputLine.Text in 
+                                                                  let result = parseNCompute () in inputLine.Text <- result))
+
+
 
    
 
+
+////////////////////////////////
+///// VIEWS AND APPEARANCE /////
+////////////////////////////////
 
 buttonPanel.Location <- new Point (5,110)
 buttonPanel.BorderStyle <- BorderStyle.Fixed3D
@@ -46,7 +81,7 @@ operatorPanel.BorderStyle <- BorderStyle.Fixed3D
 operatorPanel.Size <- new Size (100,245)
 operatorPanel.WrapContents <- true
 
-let inputLine = new TextBox()
+
 inputLine.Location <- new Point (5,5)
 inputLine.Size <- new Size(225,0)
 
@@ -63,6 +98,10 @@ mainPanel.BorderStyle <- BorderStyle.Fixed3D
 mainPanel.ClientSize <- new Size (235,350)
 mainPanel.WrapContents <- true
 
+
+///////////////////////////
+///// RUN APPLICATION /////
+///////////////////////////
 
 win.Controls.Add mainPanel
 win.ClientSize <- new Size (500,500)
