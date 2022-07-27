@@ -25,18 +25,18 @@ let inputLine = new TextBox()
 
 
 
-///////////////////////////////////////
-///// BUTTONS AND INITIALIZATIONS /////
-///////////////////////////////////////
+///////////////////////////////////////////////////////
+///// BUTTONS, INITIALIZATIONS AND EVENT HANDLING /////
+///////////////////////////////////////////////////////
 
-let numbers = 
+let numbersNoperators = 
   [(new Button(), "7"); (new Button(), "8"); (new Button(), "9");
    (new Button(), "4"); (new Button(), "5"); (new Button(), "6");
    (new Button(), "1"); (new Button(), "2"); (new Button(), "3");
                         (new Button(), "0");
    (new Button(), "+"); (new Button(), "-"); (new Button(), "*"); (new Button(), "/")] 
-numbers |> List.iter (fun (btn, txt) -> btn.Text <- txt; btn.Size <- new Size (30,20); buttonPanel.Controls.Add btn; 
-                                        btn.Click.Add (fun _ -> inputLine.AppendText(txt)) )
+numbersNoperators |> List.iter (fun (btn, txt) -> btn.Text <- txt; btn.Size <- new Size (30,20); buttonPanel.Controls.Add btn; 
+                                                  btn.Click.Add (fun _ -> inputLine.AppendText(txt)) )
 
 let numSystems = [(new RadioButton(), "bin"); (new RadioButton(), "oct"); 
                   (new RadioButton(), "dec"); (new RadioButton(), "hex")] 
@@ -46,8 +46,37 @@ numSystems |> List.iter (fun (btn, txt) -> btn.Text <- txt; numberSysPanel.Contr
                                            btn.CheckedChanged.Add (fun _ -> currentSystem <- txt))
 
 
+//////////////////////////
+///// BACK END ///////////
+//////////////////////////
 
-let parseNCompute () = "empty"
+let parseNCompute input action = 
+   let validOperators = ['-';'+';'*';'/']
+   let checkNumberSystem input = match currentSystem with 
+                                  | "bin" -> Seq.forall (fun c -> c='1' || c='0') input
+                                  | "oct" -> Seq.forall (fun c -> List.contains c [for i in 0..8 -> char i]) input
+                                  | "dec" -> Seq.forall (fun c -> List.contains c [for i in 0..9 -> char i]) input
+                                  | "hex" -> Seq.forall (fun c -> List.contains c [for i in 0..9 -> char i]@['a'..'f']@['A'..'F']) input
+
+   let check input = // check that only numbers and symbols are included and that numbersystems matches checked box
+      if Seq.forall (fun c -> List.contains c validOperators) && 
+         Seq.pairwise input |> Seq.forall (fun (c1,c2) -> not System.Char.IsDigit c1 && not System.Char.IsDigit c2) &&
+         check checkNumberSystem && not (List.contains input.[0] validOperators) then 
+           true //valid
+      else 
+           false //invalid
+
+
+    let parse input = 
+       let splitArgs = Array.ofList validOperators 
+       let digitDelims () = match currentSystem with | "bin" -> [|'1';'0'|] | "oct" -> [|'0'..'8'|] | "dec" -> [|'0'..'9'|] 
+                                                     | "hex" -> Array.append [|'0'..'9'|] [|'a'..'f'|] |> Array.append [|'A'..'F'|]
+       let operands, operators = input.Split('*', '/') |> Array.map (fun s -> input.Split('+', '-'))
+                                 input.Split(digitDelims (), System.StringSplitOptions.RemoveEmptyEntries)
+       Array.map (fun S -> Array.map (fun s -> int s) S) operands, Array.map (function | '*' -> (*) | '/' -> (/) | '+' -> (+) | '-' -> (-)) operators
+         
+
+      
 
 let operators = 
   [(new Button (), "=");
@@ -55,7 +84,7 @@ let operators =
 operators |> List.iter (fun (btn, txt) -> btn.Text <- txt; btn.Size <- new Size (90,20); operatorPanel.Controls.Add btn;
                                           btn.Click.Add (fun _ -> 
                                                                   let input = inputLine.Text in 
-                                                                  let result = parseNCompute () in inputLine.Text <- result))
+                                                                  let result = parseNCompute action () in inputLine.Text <- result))
 
 
 
