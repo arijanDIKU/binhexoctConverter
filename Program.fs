@@ -1,6 +1,10 @@
 open System.Windows.Forms
 open System.Drawing
 open System 
+open FParsec 
+open Expressions
+
+
 
 ////////////////////////////
 ///// FORMS AND PANELS /////
@@ -13,14 +17,6 @@ let buttonPanel = new FlowLayoutPanel()
 let numberSysPanel = new FlowLayoutPanel()
 let operatorPanel = new FlowLayoutPanel()
 let inputLine = new TextBox()
-
-
-
-
-
-////////////////////////////////////////////
-///// EVENT HANDLING AND FUNCTIONALITY /////   
-////////////////////////////////////////////
 
 
 
@@ -43,53 +39,81 @@ let numSystems = [(new RadioButton(), "bin"); (new RadioButton(), "oct");
 let mutable currentSystem = "bin" //default 
 let (b,_) = numSystems |> List.head in b.Checked <- true //default 
 numSystems |> List.iter (fun (btn, txt) -> btn.Text <- txt; numberSysPanel.Controls.Add btn; 
-                                           btn.CheckedChanged.Add (fun _ -> currentSystem <- txt))
+                                           btn.CheckedChanged.Add (fun _ -> currentSystem <- txt)) |> ignore
+
 
 
 //////////////////////////
 ///// BACK END ///////////
 //////////////////////////
 
-let parseNCompute input action = 
-   let validOperators = ['-';'+';'*';'/']
-   let checkNumberSystem input = match currentSystem with 
-                                  | "bin" -> Seq.forall (fun c -> c='1' || c='0') input
-                                  | "oct" -> Seq.forall (fun c -> List.contains c [for i in 0..8 -> char i]) input
-                                  | "dec" -> Seq.forall (fun c -> List.contains c [for i in 0..9 -> char i]) input
-                                  | "hex" -> Seq.forall (fun c -> List.contains c [for i in 0..9 -> char i]@['a'..'f']@['A'..'F']) input
 
-   let check input = // check that only numbers and symbols are included and that numbersystems matches checked box
-      if Seq.forall (fun c -> List.contains c validOperators) && 
-         Seq.pairwise input |> Seq.forall (fun (c1,c2) -> not System.Char.IsDigit c1 && not System.Char.IsDigit c2) &&
-         check checkNumberSystem && not (List.contains input.[0] validOperators) then 
-           true //valid
-      else 
-           false //invalid
+let isSymbolicOperatorChar = isAnyOf "*+-/"
+let remainingOpChars_ws = manySatisfy isSymbolicOperatorChar .>> spaces
+ 
+let opp = new OperatorPrecedenceParser<Expr, string,unit>()
 
 
-    let parse input = 
-       let splitArgs = Array.ofList validOperators 
-       let digitDelims () = match currentSystem with | "bin" -> [|'1';'0'|] | "oct" -> [|'0'..'8'|] | "dec" -> [|'0'..'9'|] 
-                                                     | "hex" -> Array.append [|'0'..'9'|] [|'a'..'f'|] |> Array.append [|'A'..'F'|]
-       let operands, operators = input.Split('*', '/') |> Array.map (fun s -> input.Split('+', '-'))
-                                 input.Split(digitDelims (), System.StringSplitOptions.RemoveEmptyEntries)
-       Array.map (fun S -> Array.map (fun s -> int s) S) operands, Array.map (function | '*' -> (*) | '/' -> (/) | '+' -> (+) | '-' -> (-)) operators
-         
+opp.TermParser <- pint32 .>> spaces |>> Num
 
-      
 
+opp.AddOperator(InfixOperator("+",  remainingOpChars_ws, 10, Associativity.Left, (), fun remOpChars e1 e2 -> Add(e1,e2)) )
+opp.AddOperator(InfixOperator("-",  remainingOpChars_ws, 10, Associativity.Left, (), fun remOpChars e1 e2 -> Sub(e1,e2)) )
+opp.AddOperator(InfixOperator("*",  remainingOpChars_ws, 20, Associativity.Left, (), fun remOpChars e1 e2 -> Mult(e1,e2)) )
+opp.AddOperator(InfixOperator("/",  remainingOpChars_ws, 20, Associativity.Left, (), fun remOpChars e1 e2 -> Div(e1,e2)) )
+
+
+
+let eval presult = 
+   let rec eval' exp =   
+       match exp with 
+       | Num n -> n 
+       | Add(n,m) -> eval' n + eval' m
+       | Sub(n,m) -> eval' n - eval' m
+       | Mult(n,m) -> eval' n * eval' m
+       | Div(n,m) -> if m=Num 0 then failwith "divide by zero" else eval' n / eval' m
+   match presult with 
+   | Success(e,_,_) -> eval' e
+   | _ -> failwith "fix later"
+
+let prependFormatSpecifier input : string = 
+   let p = ((many1Chars (digit <|> anyOf "abcdefABCDEF")) .>> manyChars (anyOf "*-/+")) 
+   let pprepender : Parser<string,unit> = match currentSystem with 
+                                          | "bin" -> (many (withSkippedString (fun skp res -> "0b"+skp) p)) |>> List.reduce (+)
+                                          | "oct" -> (many (withSkippedString (fun skp res -> "0o"+skp) p)) |>> List.reduce (+)
+                                          | "dec" -> (many (withSkippedString (fun skp res ->       skp) p)) |>> List.reduce (+)
+                                          | "hex" -> (many (withSkippedString (fun skp res -> "0x"+skp) p)) |>> List.reduce (+)
+
+   match run pprepender input with 
+   | Success(output, _, _) -> output
+   | _ -> failwith "parse error" //change later 
+
+
+let compute input action = 
+    match action with 
+    | "=" -> let res = prependFormatSpecifier input |> run opp.ExpressionParser |> eval in match currentSystem with 
+                                                                                           | "bin" -> Convert.ToString(res,2)
+                                                                                           | "dec" -> sprintf "%i" res
+                                                                                           | "oct" -> sprintf "%o" res
+                                                                                           | "hex" -> sprintf "%x" res
+    | "To bin" -> let res = (prependFormatSpecifier input |> run opp.ExpressionParser |> eval) in Convert.ToString(res,2)
+    | "To oct" -> prependFormatSpecifier input |> run opp.ExpressionParser |> eval |> sprintf "%o"
+    | "To dec" -> prependFormatSpecifier input |> run opp.ExpressionParser |> eval |> sprintf "%i"
+    | "To hex" -> prependFormatSpecifier input |> run opp.ExpressionParser |> eval |> sprintf "%x"
+
+
+
+
+
+//////////FIX - SHOULD BE MOVED UP BUT DEPENDS ON BACKEND 
 let operators = 
   [(new Button (), "=");
    (new Button (), "To bin"); (new Button (), "To oct"); (new Button (), "To dec"); (new Button (), "To hex")] 
 operators |> List.iter (fun (btn, txt) -> btn.Text <- txt; btn.Size <- new Size (90,20); operatorPanel.Controls.Add btn;
                                           btn.Click.Add (fun _ -> 
                                                                   let input = inputLine.Text in 
-                                                                  let result = parseNCompute action () in inputLine.Text <- result))
-
-
-
-   
-
+                                                                  let action = btn.Text in
+                                                                  let result = compute input action in inputLine.Text <- result))
 
 ////////////////////////////////
 ///// VIEWS AND APPEARANCE /////
