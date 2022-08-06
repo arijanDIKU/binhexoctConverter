@@ -8,4 +8,4 @@ mono Program.exe
 ```   
 
 ## Application
-![Image](photo.PNG) {width: 200px; }
+![Image](photo.PNG) 
